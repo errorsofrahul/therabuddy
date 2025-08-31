@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheraBuddy</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #fff; /* White theme background */
+            color: #1c1c1c; /* Dark text color */
+        }
+
+        .mood-neutral {
+            background: #f0f0f0;
+            transition: background-color 0.5s ease-in-out;
+        }
+
+        .mood-sad {
+            background: #e0e0e0;
+            transition: background-color 0.5s ease-in-out;
+        }
+
+        .mood-calm {
+            background: #d0d0d0;
+            transition: background-color 0.5s ease-in-out;
+        }
+
+        .chat-bubble {
+            max-width: 80%;
+            border-radius: 1.25rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in-out;
+            /* No box-shadow */
+        }
+
+        .chat-bubble.user {
+            background-color: #3b82f6;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .chat-bubble.therapist {
+            background-color: #e5e7eb; /* Light gray for therapist */
+            color: #1c1c1c; /* Dark text for therapist */
+            align-self: flex-start;
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        .typing-bubble {
+            width: fit-content;
+            padding: 0.5rem 1rem;
+            border-radius: 1.25rem;
+            background-color: #e5e7eb;
+            display: flex;
+            align-items: center;
+        }
+        
+        .typing-dots span {
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: #1c1c1c;
+            border-radius: 50%;
+            margin: 0 0.125rem;
+            animation: bounce 0.8s infinite ease-in-out;
+        }
+        
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+        
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .input-bar-container {
+            animation: slideUp 0.3s ease-in-out;
+            background-color: #fff;
+            border-top: 1px solid #e5e7eb;
+            border-top-left-radius: 1.25rem; /* Add rounded corners */
+            border-top-right-radius: 1.25rem;
+        }
+        
+        #chat-input {
+            background-color: #f3f4f6;
+            color: #1c1c1c;
+            border: 1px solid #d1d5db;
+        }
+
+        .placeholder-icon {
+            color: #999;
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .therapist-toggle-button {
+            color: #1c1c1c;
+            background-color: #e5e7eb;
+        }
+
+        .therapist-toggle-button.active {
+            background-color: #2e8b57;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden mood-neutral">
+
+    <!-- Top Bar -->
+    <header class="flex-shrink-0 p-4 bg-white shadow-lg flex items-center justify-between z-10">
+        <!-- TheraBuddy Logo -->
+        <img class="h-10 w-auto" src="https://ik.imagekit.io/7huiqzccy/Brain%20Data%20(4).png?updatedAt=1756621063546" alt="TheraBuddy Logo">
+        
+        <!-- Therapist Toggles -->
+        <div class="flex items-center space-x-2 bg-gray-100 p-1">
+            <button id="ethan-toggle" class="therapist-toggle-button py-2 px-4 text-sm font-medium transition-colors duration-200 active">Ethan</button>
+            <button id="eli-toggle" class="therapist-toggle-button py-2 px-4 text-sm font-medium transition-colors duration-200">Eli</button>
+        </div>
+    </header>
+
+    <!-- Main Content Area with Avatar -->
+    <main class="flex-1 flex flex-col justify-start p-4 overflow-y-auto">
+        <div class="flex flex-col items-center justify-center text-center px-4">
+            <img id="therapist-avatar" class="w-48 h-48 rounded-full shadow-xl mb-4 transition-transform duration-300 transform scale-100" src="https://ik.imagekit.io/7huiqzccy/ChatGPT%20Image%20Aug%2030,%202025,%2003_54_08%20PM.png?updatedAt=1756566519328" alt="Therapist Avatar">
+            <h2 class="text-2xl font-semibold text-gray-700">Hi there! I'm Ethan.</h2>
+            <p class="text-gray-500 mt-2">How can I help you today?</p>
+        </div>
+
+        <!-- Chat messages container -->
+        <div id="chat-container" class="w-full max-w-lg md:max-w-xl mx-auto flex flex-col space-y-2 mb-4 p-4 rounded-xl shadow-inner">
+            <!-- Chat messages will be appended here dynamically -->
+        </div>
+
+        <!-- Typing indicator -->
+        <div id="typing-indicator" class="flex items-center space-x-2 hidden">
+            <img id="typing-avatar" src="https://ik.imagekit.io/7huiqzccy/ChatGPT%20Image%20Aug%2030,%202025,%2003_54_08%20PM.png?updatedAt=1756566519328" class="w-8 h-8 rounded-full" alt="Therapist Avatar">
+            <div class="typing-bubble">
+                <div class="typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </div>
+
+    </main>
+    
+    <!-- Chat Input Section -->
+    <div class="input-bar-container flex-shrink-0 w-full p-4 bg-white border-t border-gray-200">
+        <div class="flex items-center space-x-2 max-w-lg md:max-w-xl mx-auto">
+            <i id="camera-icon" class="fas fa-camera placeholder-icon cursor-pointer"></i>
+            <input id="chat-input" type="text" placeholder="Chat" class="flex-1 py-3 px-4 rounded-full bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors duration-200">
+            <i id="microphone-icon" class="fas fa-microphone placeholder-icon cursor-pointer"></i>
+            <button id="new-chat-button" class="bg-gray-200 p-2 rounded-full hover:bg-gray-300 transition-colors duration-200">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Crisis Message Modal -->
+    <div id="crisis-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm text-center">
+            <h3 class="text-2xl font-bold text-red-600 mb-4">Crisis Alert</h3>
+            <p class="text-gray-700 mb-6">If you are experiencing suicidal thoughts or are in crisis, please seek immediate help. Here are some resources:</p>
+            <ul class="text-left text-blue-600 mb-6 space-y-2">
+                <li><a href="https://988lifeline.org/" target="_blank" class="hover:underline">988 Suicide & Crisis Lifeline</a></li>
+                <li><a href="https://www.crisistextline.org/" target="_blank" class="hover:underline">Crisis Text Line (Text HOME to 741741)</a></li>
+            </ul>
+            <button id="close-crisis-modal" class="bg-red-600 text-white font-semibold py-2 px-6 rounded-full hover:bg-red-700 transition-colors duration-200">Close</button>
+        </div>
+    </div>
+    
+    <!-- Firebase and Gemini API SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { GoogleGenerativeAI } from "https://cdn.jsdelivr.net/npm/@google/generative-ai@latest/dist/index.mjs";
+
+        // IMPORTANT: For local development, the API key is exposed here.
+        // For a production app, you should use a server-side solution to keep your API key secure.
+        const API_KEY = "AIzaSyAjXxSJ26GYyFJrWwfWzOpWvKey41FXD48";
+        
+        // Gemini API SDK
+        const genAI = new GoogleGenerativeAI(API_KEY);
+        const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-05-20" });
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        // Use a default Firebase config for local development if the environment variable is not set
+        let firebaseConfig = {};
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config);
+        } else {
+            firebaseConfig = {
+                apiKey: "AIzaSyCYttaWDAR6OdY-zW3OeRMTdsuPaL7vEBw",
+                authDomain: "therabuddy-3f3f3.firebaseapp.com",
+                projectId: "therabuddy-3f3f3",
+                storageBucket: "therabuddy-3f3f3.firebasestorage.app",
+                messagingSenderId: "863951301768",
+                appId: "1:863951301768:web:b844b04beb6ade9758433d"
+            };
+        }
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        let userId = null;
+        let sessionId = crypto.randomUUID();
+
+        const chatInput = document.getElementById("chat-input");
+        const chatContainer = document.getElementById("chat-container");
+        const therapistAvatar = document.getElementById("therapist-avatar");
+        const ethanToggle = document.getElementById("ethan-toggle");
+        const eliToggle = document.getElementById("eli-toggle");
+        const typingIndicator = document.getElementById("typing-indicator");
+        const typingAvatar = document.getElementById("typing-avatar");
+        const crisisModal = document.getElementById("crisis-modal");
+        const closeCrisisModal = document.getElementById("close-crisis-modal");
+        const cameraIcon = document.getElementById("camera-icon");
+        const microphoneIcon = document.getElementById("microphone-icon");
+        const newChatButton = document.getElementById("new-chat-button");
+        const imageInput = document.createElement('input');
+        imageInput.type = 'file';
+        imageInput.accept = 'image/*';
+        imageInput.style.display = 'none';
+        document.body.appendChild(imageInput);
+
+        const initialAvatarAndText = document.querySelector('main div:first-child');
+        const initialHeading = document.querySelector('main h2');
+        const initialParagraph = document.querySelector('main p');
+
+        let currentTherapist = 'Ethan';
+        let isListening = false;
+        let recognition = null;
+        
+        // Wait for Firebase to be initialized and authenticated
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                userId = user.uid;
+                console.log("Signed in anonymously. User ID:", userId);
+                setupFirestoreListener();
+            } else {
+                signInAnonymously(auth).catch((error) => {
+                    console.error("Error signing in anonymously:", error);
+                });
+            }
+        });
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                microphoneIcon.style.color = 'green';
+                console.log("Listening...");
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                chatInput.value = transcript;
+                microphoneIcon.style.color = '#999';
+                isListening = false;
+                console.log("Transcript:", transcript);
+            };
+
+            recognition.onerror = (event) => {
+                isListening = false;
+                microphoneIcon.style.color = '#999';
+                console.error("Speech recognition error:", event.error);
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                microphoneIcon.style.color = '#999';
+                console.log("Recognition ended.");
+            };
+        } else {
+            console.warn("Web Speech API not supported in this browser.");
+            microphoneIcon.style.display = 'none';
+        }
+
+        microphoneIcon.addEventListener('click', () => {
+            if (recognition) {
+                if (isListening) {
+                    recognition.stop();
+                } else {
+                    recognition.start();
+                }
+            } else {
+                alert("Web Speech API is not supported in your browser.");
+            }
+        });
+
+        function setupFirestoreListener() {
+            if (!userId) {
+                console.error("User ID not available for Firestore listener.");
+                return;
+            }
+            const messagesRef = collection(db, `artifacts/${appId}/users/${userId}/sessions/${sessionId}/messages`);
+            const q = query(messagesRef, orderBy('timestamp'));
+
+            onSnapshot(q, (snapshot) => {
+                let changes = snapshot.docChanges();
+                changes.forEach((change) => {
+                    if (change.type === 'added') {
+                        const message = change.doc.data();
+                        displayMessage(message);
+                    }
+                });
+            }, (error) => {
+                console.error("Error listening to Firestore:", error);
+            });
+        }
+
+        // Handle sending messages
+        chatInput.addEventListener("keypress", async (e) => {
+            if (e.key === 'Enter' && chatInput.value.trim() !== '') {
+                const messageText = chatInput.value.trim();
+                chatInput.value = '';
+
+                // Display user message in the chat
+                displayUserMessage({ text: messageText });
+
+                // Check for mood and crisis words
+                updateMoodUI(messageText);
+                const crisisWords = ['suicidal', 'kill myself', 'end my life', 'want to die'];
+                const hasCrisisWord = crisisWords.some(word => messageText.toLowerCase().includes(word));
+                if (hasCrisisWord) {
+                    crisisModal.classList.remove('hidden');
+                    return;
+                }
+
+                // Show typing indicator
+                if (initialAvatarAndText) {
+                    initialAvatarAndText.classList.add('hidden');
+                }
+                chatContainer.classList.remove('hidden');
+                typingIndicator.classList.remove('hidden');
+                
+                // Fetch AI response
+                await fetchAIResponse(messageText, currentTherapist);
+            }
+        });
+        
+        cameraIcon.addEventListener('click', () => {
+            imageInput.click();
+        });
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64Data = reader.result.split(',')[1];
+                    const imageMimeType = file.type;
+                    
+                    // Display user's image message
+                    displayUserMessage({ image: reader.result });
+                    
+                    const textPrompt = prompt("What would you like to ask about this image?");
+
+                    if (textPrompt) {
+                        // Display the text prompt
+                        displayUserMessage({ text: textPrompt });
+
+                        // Show typing indicator
+                        if (initialAvatarAndText) {
+                            initialAvatarAndText.classList.add('hidden');
+                        }
+                        chatContainer.classList.remove('hidden');
+                        typingIndicator.classList.remove('hidden');
+                        
+                        await fetchAIResponse(textPrompt, currentTherapist, { inlineData: { data: base64Data, mimeType: imageMimeType } });
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        async function fetchAIResponse(messageText, therapistName, imageData = null) {
+            let rolePrompt = "";
+            if (therapistName === 'Ethan') {
+                rolePrompt = "You are Ethan, a calm, empathetic male therapist who gives practical advice. Use clear paragraph spacing between ideas. Remove asterisks (*) completely. Make key questions/prompts bold instead of using symbols. Keep tone warm, professional, and easy to read. Example: Instead of: * What's been on your mind most today, or this week? * Write: What's been on your mind most today, or this week? Provide advice that is actionable.";
+            } else if (therapistName === 'Eli') {
+                rolePrompt = "You are Eli, a warm, empathetic female therapist who gives emotional support. Use clear paragraph spacing between ideas. Remove asterisks (*) completely. Make key questions/prompts bold instead of using symbols. Keep tone warm, professional, and easy to read. Example: Instead of: * What's been on your mind most today, or this week? * Write: What's been on your mind most today, or this week? Use supportive and kind language.";
+            }
+            
+            let contents = [];
+            contents.push({ role: "user", parts: [{ text: `${rolePrompt}\n\nUser: ${messageText}` }] });
+            if (imageData) {
+                contents[0].parts.push(imageData);
+            }
+
+            try {
+                const result = await geminiModel.generateContent({ contents: contents });
+                const response = result.response;
+                const text = response.text();
+
+                typingIndicator.classList.add('hidden');
+
+                const messagesRef = collection(db, `artifacts/${appId}/users/${userId}/sessions/${sessionId}/messages`);
+                await addDoc(messagesRef, {
+                    sender: 'therapist',
+                    text: text,
+                    timestamp: serverTimestamp()
+                }).catch(error => {
+                    console.error("Error adding therapist message to Firestore:", error);
+                });
+
+            } catch (error) {
+                console.error("Error fetching AI response:", error);
+                typingIndicator.classList.add('hidden');
+                displayErrorMessage("Sorry, I'm having trouble connecting right now. Please try again later.");
+            }
+        }
+        
+        function displayMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('chat-bubble', 'animate-fadeIn');
+
+            if (message.sender === 'user') {
+                messageDiv.classList.add('user', 'self-end');
+                if (message.text) {
+                     messageDiv.textContent = message.text;
+                }
+                if (message.image) {
+                     const img = document.createElement('img');
+                     img.src = message.image;
+                     img.classList.add('w-full', 'max-w-xs', 'rounded-lg', 'mt-2', 'shadow-md');
+                     messageDiv.appendChild(img);
+                }
+                chatContainer.appendChild(messageDiv);
+            } else if (message.sender === 'therapist') {
+                const bubbleContainer = document.createElement('div');
+                bubbleContainer.classList.add('flex', 'items-start', 'space-x-2');
+                
+                const avatar = document.createElement('img');
+                avatar.src = currentTherapist === 'Ethan' ? 'https://ik.imagekit.io/7huiqzccy/ChatGPT%20Image%20Aug%2030,%202025,%2003_54_08%20PM.png?updatedAt=1756566519328' : 'https://ik.imagekit.io/7huiqzccy/ChatGPT%20Image%20Aug%2030,%202025,%2003_35_03%20PM.png?updatedAt=1756566519443';
+                avatar.classList.add('w-8', 'h-8', 'rounded-full', 'self-end');
+
+                const messageBubble = document.createElement('div');
+                messageBubble.classList.add('chat-bubble', 'therapist', 'self-start');
+                
+                const formattedText = message.text
+                                         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                         .replace(/\n\s*\n/g, '<br><br>');
+                messageBubble.innerHTML = formattedText;
+                
+                bubbleContainer.appendChild(avatar);
+                bubbleContainer.appendChild(messageBubble);
+                chatContainer.appendChild(bubbleContainer);
+            }
+
+            const mainArea = document.querySelector("main");
+            mainArea.scrollTo({
+                top: mainArea.scrollHeight,
+                behavior: "smooth"
+            });
+        }
+
+        function displayErrorMessage(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.classList.add('chat-bubble', 'therapist', 'self-start');
+            errorDiv.textContent = message;
+            chatContainer.appendChild(errorDiv);
+            
+            const mainArea = document.querySelector("main");
+            mainArea.scrollTo({
+                top: mainArea.scrollHeight,
+                behavior: "smooth"
+            });
+        }
+
+        function updateMoodUI(messageText) {
+            const body = document.body;
+            const sadWords = ['sad', 'depressed', 'stressed', 'anxious', 'lonely', 'unhappy'];
+            const calmWords = ['calm', 'peaceful', 'relaxed', 'happy', 'good'];
+            const lowerCaseMessage = messageText.toLowerCase();
+
+            body.classList.remove('mood-neutral', 'mood-sad', 'mood-calm');
+
+            if (sadWords.some(word => lowerCaseMessage.includes(word))) {
+                body.classList.add('mood-sad');
+            } else if (calmWords.some(word => lowerCaseMessage.includes(word))) {
+                body.classList.add('mood-calm');
+            } else {
+                body.classList.add('mood-neutral');
+            }
+        }
+        
+        function displayUserMessage(message) {
+            if (initialAvatarAndText) {
+                initialAvatarAndText.classList.add('hidden');
+            }
+            chatContainer.classList.remove('hidden');
+
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('chat-bubble', 'user', 'self-end', 'animate-fadeIn');
+
+            if (message.text) {
+                messageDiv.textContent = message.text;
+            }
+            
+            if (message.image) {
+                const img = document.createElement('img');
+                img.src = message.image;
+                img.classList.add('w-full', 'max-w-xs', 'rounded-lg', 'mt-2', 'shadow-md');
+                messageDiv.appendChild(img);
+            }
+
+            chatContainer.appendChild(messageDiv);
+
+            const mainArea = document.querySelector("main");
+            mainArea.scrollTo({
+                top: mainArea.scrollHeight,
+                behavior: "smooth"
+            });
+        }
+
+        // Therapist selection
+        ethanToggle.addEventListener('click', () => selectTherapist('Ethan'));
+        eliToggle.addEventListener('click', () => selectTherapist('Eli'));
+
+        function selectTherapist(therapist) {
+            currentTherapist = therapist;
+            if (therapist === 'Ethan') {
+                therapistAvatar.src = 'https://ik.imagekit.io/7huiqzccy/ChatGPT%20Image%20Aug%2030,%202025,%2003_54_08%20PM.png?updatedAt=1756566519328';
+                typingAvatar.src = 'https://ik.imagekit.io/7huiqzccy/ChatGPT%20Image%20Aug%2030,%202025,%2003_54_08%20PM.png?updatedAt=1756566519328';
+                ethanToggle.classList.add('active');
+                eliToggle.classList.remove('active');
+                if (initialHeading) {
+                    initialHeading.textContent = "Hi there! I'm Ethan.";
+                }
+            } else {
+                therapistAvatar.src = 'https://ik.imagekit.io/7huiqzccy/ChatGPT%20Image%20Aug%2030,%202025,%2003_35_03%20PM.png?updatedAt=1756566519443';
+                typingAvatar.src = 'https://ik.imagekit.io/7huiqzccy/ChatGPT%20Image%20Aug%2030,%202025,%2003_35_03%20PM.png?updatedAt=1756566519443';
+                eliToggle.classList.add('active');
+                ethanToggle.classList.remove('active');
+                if (initialHeading) {
+                    initialHeading.textContent = "Hi there! I'm Eli.";
+                }
+            }
+            console.log("Therapist switched to:", currentTherapist);
+        }
+
+        // Close crisis modal
+        closeCrisisModal.addEventListener('click', () => {
+            crisisModal.classList.add('hidden');
+        });
+        
+        // Start a new chat
+        newChatButton.addEventListener('click', () => {
+            startNewChat();
+        });
+        
+        function startNewChat() {
+            // Clear all messages from the chat container
+            chatContainer.innerHTML = '';
+            
+            // Generate a new session ID
+            sessionId = crypto.randomUUID();
+            console.log("Starting new chat. New session ID:", sessionId);
+            
+            // Show the initial avatar and text
+            if (initialAvatarAndText) {
+                initialAvatarAndText.classList.remove('hidden');
+            }
+            chatContainer.classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>
